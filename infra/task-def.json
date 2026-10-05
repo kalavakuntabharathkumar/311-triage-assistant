@@ -1,0 +1,46 @@
+{
+  "family": "311-triage-assistant",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/311TriageTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "triage",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/311-triage-assistant:latest",
+      "essential": true,
+      "command": ["etl", "--days-back", "1", "&&", "triage", "--batch-size", "500", "--use-batch-api"],
+      "environment": [
+        {"name": "DB_PATH", "value": "/app/data/311.db"},
+        {"name": "BATCH_API", "value": "true"},
+        {"name": "LOG_LEVEL", "value": "INFO"}
+      ],
+      "secrets": [
+        {"name": "OPENAI_API_KEY", "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:openai-api-key"}
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/311-triage-assistant",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "mountPoints": [
+        {"sourceVolume": "data", "containerPath": "/app/data", "readOnly": false}
+      ]
+    }
+  ],
+  "volumes": [
+    {
+      "name": "data",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-XXXXXXXX",
+        "rootDirectory": "/311-triage",
+        "transitEncryption": "ENABLED"
+      }
+    }
+  ]
+}
